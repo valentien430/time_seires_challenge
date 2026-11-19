@@ -168,21 +168,21 @@ def expand(X, Y):
     return Xr[keep], yr[keep], wr[keep]
 
 
-def make_model(name, seed=42):
+def make_model(name, seed=42, learning_rate=0.03):
     """The two candidate models. Logistic regression needs standardised features; gradient boosting does not."""
     if name == "logreg":
         return make_pipeline(StandardScaler(), LogisticRegression(C=0.1, max_iter=2000))
-    return HistGradientBoostingClassifier(learning_rate=0.05, max_iter=300, max_leaf_nodes=31,
+    return HistGradientBoostingClassifier(learning_rate=learning_rate, max_iter=300, max_leaf_nodes=31,
                                           l2_regularization=1.0, random_state=seed)
 
 
 MODEL_NAMES = ["logreg", "hgb"]
 
 
-def fit(name, X, Y, seed=42):
+def fit(name, X, Y, seed=42, learning_rate=0.03):
     """Fit model `name` on features X and soft labels Y (rows are vote distributions)."""
     Xe, ye, we = expand(X, Y)
-    m = make_model(name, seed)
+    m = make_model(name, seed, learning_rate)
     if name == "logreg":   # in a Pipeline the weight must be routed to the final step
         m.fit(Xe, ye, logisticregression__sample_weight=we)
     else:
@@ -197,6 +197,7 @@ def to_matrix(frame, feats):
 
 def cross_validate(X, Y, groups, num_votes, n_folds, seed):
     """Patient-grouped K-fold CV for both models; prints scores and returns the better model's name."""
+    learning_rates = [0.01,0.03,0.05]
     prior = np.tile(Y.mean(axis=0), (len(Y), 1))   # trivial reference: always predict the mean distribution
     hi = num_votes >= 10                            # EEGs with at least 10 expert votes
     oof = {name: np.zeros_like(Y) for name in MODEL_NAMES}   # out-of-fold predictions per model
